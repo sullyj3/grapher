@@ -45,19 +45,19 @@ repl = do
 
 handleCommand :: Command -> GraphState ()
 handleCommand (AddEdge u v) = do
-
   g <- get
 
   uValid <- liftIO $ validateVertex u g
   vValid <- liftIO $ validateVertex v g
 
-  if not (uValid && vValid)
-    then repl
-    else return ()
+  if (uValid && vValid)
+    then do
+      modify $ graphAddEdge u v
+      showGraph
+      repl
+    else repl
 
-  modify $ graphAddEdge u v
-  showGraph
-  repl
+
 handleCommand ShowGraph = do
   showGraph
   repl
