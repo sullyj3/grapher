@@ -11,69 +11,71 @@ import Lib
 import CommandParser
 
 import qualified Data.Text.IO as TIO
+import Data.String
 import Control.Monad (guard)
 import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 import Data.Foldable (mapM_)
 
 import Data.Graph
 import Data.Array
 import Data.Ix (inRange)
+import Data.Maybe (fromJust)
 
-type GraphState = StateT Graph IO
+import System.Console.Haskeline
+import System.Exit (exitSuccess)
+
+type Grapher = StateT Graph (InputT IO)
 
 main :: IO ()
 main = do
-  TIO.putStrLn "How many nodes?"
-  numNodes <- prompt "> "
-  putStrLn $ "Creating new graph with " ++ show numNodes ++ " nodes."
-  let initialGraph = nNodesNoEdges numNodes
+  initialGraph <- runInputT defaultSettings initGraph
 
-  runStateT repl initialGraph
+  runInputT defaultSettings $ execStateT repl initialGraph
   return ()
 
-repl :: GraphState ()
-repl = do
-  liftIO $ putStr "> "
-  -- TODO: better line editor
-  line <- liftIO TIO.getLine
-  case getCommand line of
-    Left e -> do
-      liftIO $ putStrLn "invalid command"
-      repl
-    Right command -> handleCommand command
+initGraph :: InputT IO Graph
+initGraph = do
+  outputStrLn "How many nodes?"
+  numNodes <- fmap (read . fromJust) (getInputLine "> ")
+  outputStrLn $ "Creating new graph with " ++ show numNodes ++ " nodes."
+  let initialGraph = nNodesNoEdges numNodes
+  return initialGraph
 
-handleCommand :: Command -> GraphState ()
+repl :: StateT Graph (InputT IO) ()
+repl = do
+  -- todo: remove fromjust
+  line <- fmap fromJust $ lift $ getInputLine "> "
+  case getCommand $ fromString line of
+    Left e        -> lift $ outputStrLn "invalid command"
+    Right command -> handleCommand command
+  repl
+
+handleCommand :: Command -> Grapher ()
 handleCommand (AddEdge u v) = do
   g <- get
 
-  uValid <- liftIO $ validateVertex u g
-  vValid <- liftIO $ validateVertex v g
+  let uValid = vertexValid u g
+  let vValid = vertexValid v g
 
   if (uValid && vValid)
     then do
       modify $ graphAddEdge u v
       showGraph
-      repl
-    else repl
-
-
+    else do
+      lift $ outputStrLn "Bad vertices"
 handleCommand ShowGraph = do
   showGraph
-  repl
-handleCommand Exit = return ()
+handleCommand Exit = liftIO exitSuccess
 
-validateVertex :: Vertex -> Graph -> IO Bool
-validateVertex u g = if inRange (bounds g) u
-  then return True
-  else do
-    putStrLn $ (show u) ++ " is not in the graph!"
-    return False
+vertexValid :: Vertex -> Graph -> Bool
+vertexValid u g = inRange (bounds g) u
 
-showGraph :: GraphState ()
+showGraph :: Grapher ()
 showGraph = do 
   g <- get
-  liftIO . mapM_ print . assocs $ g
+  lift $ mapM_ (outputStrLn . show) $ assocs g
 
 prompt s = do
   TIO.putStr s
