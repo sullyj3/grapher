@@ -68,6 +68,13 @@ handleCommand (AddEdge u v) = do
 handleCommand ShowGraph = do
   showGraph
 handleCommand Exit = liftIO exitSuccess
+handleCommand Help = liftIO $ putStrLn helpMsg where
+  helpMsg = unlines
+      [ "Commands:",
+        "  edge u v  - add an edge from u to v",
+        "  show      - print out the graph",
+        "  help OR ? - show this help message",
+        "  exit      - exit the program"         ]
 
 vertexValid :: Vertex -> Graph -> Bool
 vertexValid u g = inRange (bounds g) u

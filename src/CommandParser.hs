@@ -9,7 +9,7 @@ import Data.Void
 import Data.Text
 import Data.Graph
 
-data Command = Exit | AddEdge Vertex Vertex | ShowGraph
+data Command = Exit | AddEdge Vertex Vertex | ShowGraph | Help
   deriving Show
 
 type CommandParser = Parsec Void Text Command
@@ -17,7 +17,8 @@ type CommandParser = Parsec Void Text Command
 parseCommand :: CommandParser
 parseCommand = parseExit <|>
                parseAddEdge <|>
-               parseShowGraph
+               parseShowGraph <|>
+               parseHelp
 
 parseExit :: CommandParser
 parseExit = do
@@ -41,6 +42,11 @@ parseShowGraph = do
   string "show"
   eof
   return ShowGraph
---
+
+parseHelp :: CommandParser
+parseHelp = do
+  string "help" <|> string "?"
+  eof
+  return Help
 
 getCommand input = runParser parseCommand "" input
